@@ -2,6 +2,8 @@ from openai import OpenAI
 import json
 from typing import Dict, Any
 
+from env_loader import get_openai_api_key
+
 system_lesson = """
 You are a curriculum generator for the subject of Algebra. Output a strict JSON object that matches this format:
 {
@@ -91,10 +93,7 @@ You are a curriculum generator for the subject of Algebra. Output a strict JSON 
 
 
 def _client():
-    client = OpenAI(
-        api_key=""
-    )
-    return client
+    return OpenAI(api_key=get_openai_api_key())
 
 
 def generate_unit(topic: str, model="gpt-5") -> Dict[str, Any]:

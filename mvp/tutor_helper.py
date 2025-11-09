@@ -2,6 +2,8 @@ from openai import OpenAI
 import json
 from typing import Any, Dict
 
+from env_loader import get_openai_api_key
+
 system_tutor = """You are tutor that helps users when they get a question wrong.
 When a user gets something wrong, write feedback in this format:
 "You were close, but got it wrong: ""
@@ -12,10 +14,7 @@ When a user gets something wrong, write feedback in this format:
 
 
 def _client():
-    client = OpenAI(
-        api_key=""
-    )
-    return client
+    return OpenAI(api_key=get_openai_api_key())
 
 
 def ai_tutor_reply(question: str, context: str, model="gpt-04-mini") -> Dict[str, Any]:
