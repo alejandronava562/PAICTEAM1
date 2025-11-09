@@ -29,8 +29,10 @@ def run_quiz(lessoncontent: list, input_fn=input, print_fn=print) -> int:
             answer = input_fn("> :").strip().upper()
             continue
       
-      if answer
-            
-
-    
+    if answer == q["CORRECT_ANSWER"]:
+        coins += 10
+        print_fn("Correct: +10 coins")
+    else:
+        coins -= 5
+        print_fn("Incorrect: -5 coins")
     return coins
