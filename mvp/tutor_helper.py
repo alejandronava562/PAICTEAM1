@@ -17,7 +17,7 @@ def _client():
     return OpenAI(api_key=get_openai_api_key())
 
 
-def ai_tutor_reply(question: str, context: str, model="gpt-04-mini") -> Dict[str, Any]:
+def ai_tutor_reply(question: str, context: str, model="gpt-5") -> Dict[str, Any]:
     client = _client()
     response = client.chat.completions.create(
         model=model,
