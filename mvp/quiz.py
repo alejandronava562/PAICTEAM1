@@ -1,12 +1,14 @@
-def run_quiz(lessoncontent: list, input_fn=input, print_fn=print) -> int:
+import json
+from typing import Callable, Dict, Optional
+
+TutorCallback = Callable[[Dict[str,str],str], Optional[str]]
+
+def run_quiz(lessoncontent: list, input_fn=input, print_fn=print, tutor_callback : Optional[TutorCallback] = None) -> int:
     """
     
     """
     coins = 0   
-    quizzes= []
-    for data in lessoncontent:
-        if data.get("TYPE") == "QUIZ":
-            quizzes.append(data)
+    quizzes= [data for data in lessoncontent if data.get("TYPE") == "QUIZ"]
 
     if len(quizzes) == 0:
       print("ERROR 404, self destruct imminent")
@@ -16,9 +18,9 @@ def run_quiz(lessoncontent: list, input_fn=input, print_fn=print) -> int:
 
     for q in questions:
         print_fn(f'\nQ{q["QUESTION_NUMBER"]}. {q["QUESTION"]}')
-        options = q["OPTIONS"]
-        for i in ["A","B","C","D"]:
-            print_fn(f'{i} {options[i]}')
+        for option_key in ["A", "B", "C", "D"]:
+            # TODO: 
+            print_fn(f'{option_key} {q["OPTIONS"][option_key]}')
           
         answer = input_fn("> :").strip().upper()
         while answer not in ["A","B","C","D"]:
@@ -31,4 +33,14 @@ def run_quiz(lessoncontent: list, input_fn=input, print_fn=print) -> int:
         else:
             coins -= 5
             print_fn("Incorrect: -5 coins")
+
+        if tutor_callback:
+            feedback = tutor_callback(q, answer)
+            if feedback:
+                printable = feedback if isinstance(feedback, str) else json.dumps(feedback, indent=2)
+                print_fn("\nAI Tutor:")
+                print_fn(printable)
+
+
+    
     return coins

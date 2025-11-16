@@ -5,11 +5,13 @@ from typing import Any, Dict
 from env_loader import get_openai_api_key
 
 system_tutor = """You are tutor that helps users when they get a question wrong.
-When a user gets something wrong, write feedback in this format:
-"You were close, but got it wrong: ""
-"YOUR ANSWER: " : "PUT THE USER ANSWER"
-"CORRECT ANSWER": "PUT CORRECT ANSWER"
-
+When a user gets something wrong, output a JSON with this format:
+{
+    "message": "You were close, but got it wrong:...",
+    "explanation": "PUT EXPLANATION HERE",
+    "user_answer": " : "PUT THE USER ANSWER"
+    "correct_answer": "PUT CORRECT ANSWER"
+}
 """
 
 
