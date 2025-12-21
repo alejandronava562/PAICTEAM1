@@ -10,6 +10,7 @@ import uuid
 
 from unit_generator import generate_unit
 from tutor_helper import ai_tutor_reply
+from path_generator import generate_pathway
 
 # Serve static files under /static (Flask default). Explicit to avoid 404s in templates.
 app = Flask(__name__, static_folder="static", static_url_path="/static")
@@ -84,41 +85,16 @@ def start():
     data = request.get_json(force=True) or {}
     topic = (data.get("topic") or "").strip()
     use_tutor = bool(data.get("use_tutor", False))
-
     if not topic:
         return jsonify({"error": "Topic is required"}), 400
 
-    # Mirror original intent: generate one unit, then quiz from LESSON1CONTENT
-    unit = generate_unit(topic, model="gpt-4o")
-    lessoncontent = unit.get("LESSON1CONTENT", []) or []
-
-    lessons = _extract_lessons(lessoncontent)
-    questions = _extract_quiz_questions(lessoncontent)
-
-    state = _get_state()
-    state.clear()
-    state.update({
-        "topic": topic,
-        "use_tutor": use_tutor,
-        "unit": unit,
-        "lessoncontent": lessoncontent,
-        "lessons": lessons,
-        "questions": questions,
-        "q_index": 0,
-        "coins": 0,
-    })
-
-    first_q = questions[0] if questions else None
-
+    pathway = generate_pathway(topic=topic)
     return jsonify({
         "topic": topic,
         "use_tutor": use_tutor,
-        "lessons": lessons,
-        "question": first_q,
-        "coins": 0,
-        "done": first_q is None,
+        "pathway": pathway
     })
-
+    
 
 @app.get("/api/state")
 def get_state():

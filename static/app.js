@@ -100,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
   startBtn.addEventListener("click", async () => {
     if (!selectedTopic) return;
     startBtn.disabled = true;
-    startStatus.textContent = "Starting lesson...";
+    startStatus.textContent = "Generating Your Customized Lesson Path...";
     try {
       const res = await fetch("/api/start", {
         method: "POST",
@@ -109,8 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to start");
-      startStatus.textContent = "Lesson started!";
-      pathStatus.textContent = "Response from ChaGPT" + JSON.stringify(data, null, 2);
+      pathStatus.textContent = "Response from ChaGPT" + JSON.stringify(data.pathway, null, 2);
       setStep("path")
     } catch (err) {
       startStatus.textContent = err.message;
