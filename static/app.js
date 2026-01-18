@@ -52,10 +52,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const unitLoadingOverlay = document.querySelector("#unit-loading-overlay");
 
   const timelineLineMarkup = '<div class="timeline-line"></div>';
+  const QUIZ_STORAGE_PREFIX = "theorem.quizProgress";
+  const QUIZ_STORAGE_TTL_MS = 24 * 60 * 60 * 1000;
 
   let username = "";
   let selectedTopicId = null;
   let current = {
+    topic: null,
     learningPath: null,
     progress: {},
     unitMeta: {},
@@ -70,9 +73,94 @@ document.addEventListener("DOMContentLoaded", () => {
     currentQuestion: null,
     pendingNextQuestion: null,
     done: false,
+    feedbackText: "",
+    awaitingNext: false,
   };
   let isAnswerSubmitting = false;
   let isUnitLoading = false;
+
+  function safeLocalStorageGet(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function safeLocalStorageSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (err) {
+      // Ignore storage errors (quota/private mode)
+    }
+  }
+
+  function safeLocalStorageRemove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (err) {
+      // Ignore storage errors
+    }
+  }
+
+  function getQuizStorageKey(unitId) {
+    const topicKey = encodeURIComponent(current.topic || "unknown");
+    return `${QUIZ_STORAGE_PREFIX}.${topicKey}.${unitId}`;
+  }
+
+  function loadQuizProgress(unitId) {
+    const key = getQuizStorageKey(unitId);
+    const raw = safeLocalStorageGet(key);
+    if (!raw) return null;
+    try {
+      const data = JSON.parse(raw);
+      if (!data || data.unitId !== unitId) {
+        safeLocalStorageRemove(key);
+        return null;
+      }
+      if (data.savedAt && Date.now() - data.savedAt > QUIZ_STORAGE_TTL_MS) {
+        safeLocalStorageRemove(key);
+        return null;
+      }
+      if (data.done) {
+        safeLocalStorageRemove(key);
+        return null;
+      }
+      if (!data.currentQuestion || !Array.isArray(data.lessons)) {
+        safeLocalStorageRemove(key);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      safeLocalStorageRemove(key);
+      return null;
+    }
+  }
+
+  function clearQuizProgress(unitId) {
+    if (!unitId) return;
+    safeLocalStorageRemove(getQuizStorageKey(unitId));
+  }
+
+  function persistQuizProgress() {
+    if (!unitSession.unitId) return;
+    if (unitSession.done) {
+      clearQuizProgress(unitSession.unitId);
+      return;
+    }
+    const payload = {
+      savedAt: Date.now(),
+      unitId: unitSession.unitId,
+      unitMeta: unitSession.unitMeta,
+      lessons: unitSession.lessons,
+      currentQuestion: unitSession.currentQuestion,
+      pendingNextQuestion: unitSession.pendingNextQuestion,
+      done: unitSession.done,
+      feedbackText: unitSession.feedbackText || "",
+      awaitingNext: Boolean(unitSession.awaitingNext),
+    };
+    safeLocalStorageSet(getQuizStorageKey(unitSession.unitId), JSON.stringify(payload));
+  }
 
   function setUnitLoading(isLoading) {
     if (!unitLoadingOverlay) return;
@@ -198,6 +286,8 @@ document.addEventListener("DOMContentLoaded", () => {
       current.progress = data.progress || {};
       current.unitMeta = data.unit_meta || {};
       current.unitOrder = data.unit_order || [];
+      current.topic = topic;
+      current.activeUnitId = null;
       setCoins(0);
 
       renderLearningPath(current.learningPath, current.progress, current.unitMeta);
@@ -210,6 +300,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function startUnit(unitId) {
     if (isUnitLoading) return;
+    const saved = loadQuizProgress(unitId);
+    if (saved) {
+      unitSession.unitId = saved.unitId;
+      unitSession.unitMeta = saved.unitMeta || current.unitMeta?.[unitId] || null;
+      unitSession.lessons = saved.lessons || [];
+      unitSession.currentQuestion = saved.currentQuestion || null;
+      unitSession.pendingNextQuestion = saved.pendingNextQuestion || null;
+      unitSession.done = Boolean(saved.done);
+      unitSession.feedbackText = saved.feedbackText || "";
+      unitSession.awaitingNext = Boolean(saved.awaitingNext);
+      current.activeUnitId = saved.unitId;
+      renderUnitLesson(unitSession.unitMeta, unitSession.lessons);
+      setStep("lesson");
+      persistQuizProgress();
+      return;
+    }
     isUnitLoading = true;
     setUnitLoading(true);
     lessonStatus.textContent = "";
@@ -226,6 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!res.ok) throw new Error(data.error || "Failed to start unit");
 
       current.progress = data.progress || current.progress;
+      current.activeUnitId = data.unit_id;
       setCoins(data.coins);
 
       unitSession.unitId = data.unit_id;
@@ -234,9 +341,12 @@ document.addEventListener("DOMContentLoaded", () => {
       unitSession.currentQuestion = data.question || null;
       unitSession.pendingNextQuestion = null;
       unitSession.done = false;
+      unitSession.feedbackText = "";
+      unitSession.awaitingNext = false;
 
       renderUnitLesson(unitSession.unitMeta, unitSession.lessons);
       setStep("lesson");
+      persistQuizProgress();
     } catch (err) {
       pathStatus.textContent = err.message;
     } finally {
@@ -292,6 +402,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function syncQuizStateFromPending() {
+    if (unitSession.awaitingNext) return;
     if (!unitSession.done && unitSession.pendingNextQuestion) {
       unitSession.currentQuestion = unitSession.pendingNextQuestion;
       unitSession.pendingNextQuestion = null;
@@ -322,15 +433,23 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.feedback?.message) feedbackText += `\n\n${data.feedback.message}`;
       if (data.feedback?.explanation) feedbackText += `\n${data.feedback.explanation}`;
       quizFeedbackEl.textContent = feedbackText;
+      unitSession.feedbackText = feedbackText;
 
       unitSession.pendingNextQuestion = data.next_question || null;
       unitSession.done = Boolean(data.done);
       if (unitSession.done) unitSession.pendingNextQuestion = null;
+      unitSession.awaitingNext = true;
+      current.activeUnitId = data.active_unit_id || current.activeUnitId;
 
       if (unitSession.done) {
         quizNextBtn.textContent = "Back to Path";
       }
       quizNextBtn.disabled = false;
+      if (unitSession.done) {
+        clearQuizProgress(unitSession.unitId);
+      } else {
+        persistQuizProgress();
+      }
     } catch (err) {
       quizStatus.textContent = err.message;
       setOptionsEnabled(true);
@@ -348,8 +467,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     unitSession.currentQuestion = unitSession.pendingNextQuestion;
     unitSession.pendingNextQuestion = null;
+    unitSession.feedbackText = "";
+    unitSession.awaitingNext = false;
     renderQuestion(unitSession.currentQuestion);
     setOptionsEnabled(true);
+    persistQuizProgress();
   }
 
   form.addEventListener("input", () => {
@@ -386,6 +508,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   quizBackBtn.addEventListener("click", () => {
     syncQuizStateFromPending();
+    persistQuizProgress();
     renderLearningPath(current.learningPath, current.progress, current.unitMeta);
     setStep("path");
   });
@@ -397,7 +520,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     renderQuestion(unitSession.currentQuestion);
-    setOptionsEnabled(true);
+    if (unitSession.awaitingNext) {
+      quizFeedbackEl.textContent = unitSession.feedbackText || "";
+      quizNextBtn.textContent = unitSession.done ? "Back to Path" : "Next";
+      quizNextBtn.disabled = false;
+      setOptionsEnabled(false);
+    } else {
+      setOptionsEnabled(true);
+    }
     setStep("quiz");
   });
 
