@@ -14,7 +14,7 @@
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background: radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.08), transparent 25%),
+  background: radial-gradient(circle at 10% 20%, rgba(0, 0, 0, 0.08), transparent 25%),
               radial-gradient(circle at 90% 30%, rgba(59, 130, 246, 0.06), transparent 22%),
               var(--bg);
   color: var(--text);
@@ -145,7 +145,7 @@ button.ghost {
 }
 
 .topic-icon { font-size: 28px; margin-bottom: 10px; }
-.topic-title { margin: 0 0 6px; font-weight: 700; }
+.topic-title { margin: 0 0 6px; font-weight: 700; color: white; }
 .topic-desc { margin: 0; color: var(--muted); font-size: 14px; }
 
 .actions {

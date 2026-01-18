@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     pendingNextQuestion: null,
     done: false,
   };
+  let isAnswerSubmitting = false;
 
   function setStep(step) {
     [welcomeScreen, topicsScreen, pathScreen, lessonScreen, quizScreen].forEach((el) =>
@@ -276,8 +277,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function syncQuizStateFromPending() {
+    if (!unitSession.done && unitSession.pendingNextQuestion) {
+      unitSession.currentQuestion = unitSession.pendingNextQuestion;
+      unitSession.pendingNextQuestion = null;
+    }
+  }
+
   async function submitAnswer(letter) {
-    quizStatus.textContent = "";
+    if (isAnswerSubmitting) return;
+    isAnswerSubmitting = true;
+    quizStatus.textContent = "Checking answer...";
+    quizBackBtn.disabled = true;
     setOptionsEnabled(false);
     try {
       const res = await fetch("/api/answer", {
@@ -287,6 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit answer");
+      quizStatus.textContent = "";
 
       current.progress = data.progress || current.progress;
       setCoins(data.coins);
@@ -299,6 +311,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       unitSession.pendingNextQuestion = data.next_question || null;
       unitSession.done = Boolean(data.done);
+      if (unitSession.done) unitSession.pendingNextQuestion = null;
 
       if (unitSession.done) {
         quizNextBtn.textContent = "Back to Path";
@@ -307,6 +320,9 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       quizStatus.textContent = err.message;
       setOptionsEnabled(true);
+    } finally {
+      isAnswerSubmitting = false;
+      quizBackBtn.disabled = false;
     }
   }
 
@@ -355,11 +371,13 @@ document.addEventListener("DOMContentLoaded", () => {
     setStep("path");
   });
   quizBackBtn.addEventListener("click", () => {
+    syncQuizStateFromPending();
     renderLearningPath(current.learningPath, current.progress, current.unitMeta);
     setStep("path");
   });
 
   startQuizBtn.addEventListener("click", () => {
+    syncQuizStateFromPending();
     if (!unitSession.currentQuestion) {
       lessonStatus.textContent = "No quiz loaded yet.";
       return;
