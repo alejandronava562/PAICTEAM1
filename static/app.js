@@ -49,6 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const quizFeedbackEl = document.querySelector("#quiz-feedback");
   const quizNextBtn = document.querySelector("#quiz-next-btn");
   const quizStatus = document.querySelector("#quiz-status");
+  const unitLoadingOverlay = document.querySelector("#unit-loading-overlay");
 
   const timelineLineMarkup = '<div class="timeline-line"></div>';
 
@@ -71,6 +72,13 @@ document.addEventListener("DOMContentLoaded", () => {
     done: false,
   };
   let isAnswerSubmitting = false;
+  let isUnitLoading = false;
+
+  function setUnitLoading(isLoading) {
+    if (!unitLoadingOverlay) return;
+    unitLoadingOverlay.classList.toggle("hidden", !isLoading);
+    unitLoadingOverlay.setAttribute("aria-hidden", String(!isLoading));
+  }
 
   function setStep(step) {
     [welcomeScreen, topicsScreen, pathScreen, lessonScreen, quizScreen].forEach((el) =>
@@ -201,6 +209,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function startUnit(unitId) {
+    if (isUnitLoading) return;
+    isUnitLoading = true;
+    setUnitLoading(true);
     lessonStatus.textContent = "";
     quizStatus.textContent = "";
     quizFeedbackEl.textContent = "";
@@ -228,6 +239,9 @@ document.addEventListener("DOMContentLoaded", () => {
       setStep("lesson");
     } catch (err) {
       pathStatus.textContent = err.message;
+    } finally {
+      isUnitLoading = false;
+      setUnitLoading(false);
     }
   }
 
