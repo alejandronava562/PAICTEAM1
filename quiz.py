@@ -19,7 +19,6 @@ def run_quiz(lessoncontent: list, input_fn=input, print_fn=print, tutor_callback
     for q in questions:
         print_fn(f'\nQ{q["QUESTION_NUMBER"]}. {q["QUESTION"]}')
         for option_key in ["A", "B", "C", "D"]:
-            # TODO: 
             print_fn(f'{option_key} {q["OPTIONS"][option_key]}')
           
         answer = input_fn("> :").strip().upper()

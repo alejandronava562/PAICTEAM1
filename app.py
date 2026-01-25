@@ -6,6 +6,8 @@
 
 from flask import Flask, render_template, request, jsonify, session
 from typing import Dict, Any, Optional
+import os
+import json
 import uuid
 
 from unit_generator import generate_unit
@@ -13,6 +15,23 @@ from tutor_helper import ai_tutor_reply
 from path_generator import generate_pathway
 from learning_path import extract_learning_path, flatten_units, init_progress, next_unit_id
 from session_state import default_state
+
+#Firebase Imports
+import firebase_admin
+from firestore_db import *
+from firebase_admin import credentials, auth
+
+# Initialize admin sk
+if not firebase_admin._apps:
+    # check if running on render
+    firebase_creds_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+    if firebase_creds_json:
+        cred = credentials.Certificate(json.loads(firebase_creds_json))
+    else:
+        # Local
+        cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'service-account.json')
+        cred = credentials.Certificate(cred_path)
+        
 
 # Serve static files under /static (Flask default). Explicit to avoid 404s in templates.
 app = Flask(__name__, static_folder="static", static_url_path="/static")
