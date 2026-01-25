@@ -31,9 +31,9 @@ if not firebase_admin._apps:
         # Local
         cred_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'service-account.json')
         cred = credentials.Certificate(cred_path)
-        
 
-# Serve static files under /static (Flask default). Explicit to avoid 404s in templates.
+init_firestore()
+
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = "dev-secret-change-me"  # needed for session cookies
 
